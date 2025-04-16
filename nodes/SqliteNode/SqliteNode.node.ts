@@ -7,6 +7,49 @@ import {
 } from 'n8n-workflow';
 import * as sqlite3 from 'sqlite3';
 
+async function all(db: sqlite3.Database, query: string, args: any): Promise<any> {
+	return new Promise((resolve, reject) => {
+		// For SELECT queries, use db.all() to get all rows
+		db.all(query, args, (error, rows) => {
+			if (error) {
+				return reject(error);
+			}
+			resolve(rows);
+		});
+	});
+}
+
+async function run(db: sqlite3.Database, query: string, args: any): Promise<any> {
+	return new Promise((resolve, reject) => {
+		// For SELECT queries, use db.all() to get all rows
+		db.run(query, args, function (error)
+		{
+			if(error) 
+			{
+				return reject(error);
+			}
+
+			resolve({
+				changes: this.changes, // Number of rows affected
+				last_id: this.lastID // The last inserted row ID
+			});
+		});
+	});
+}
+
+async function exec(db: sqlite3.Database, query: string): Promise<any> {
+	return new Promise((resolve, reject) => {
+		// For other SQL commands (like CREATE, DROP, etc.), use db.exec()
+		db.exec(query, (error) => {
+			if (error) {
+				return reject(error);
+			}
+			resolve({ message: 'Query executed successfully.' });
+		});
+	});
+}
+ 
+
 export class SqliteNode implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'SQLite Node',
@@ -112,135 +155,100 @@ export class SqliteNode implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> 
 	{
 		const items = this.getInputData();
-		let item: INodeExecutionData;
 
-		let spreadResults = [];
+		let outputItems = [];
 		for(let itemIndex = 0; itemIndex < items.length; itemIndex++) 
 		{
+			
+			let db_path = this.getNodeParameter('db_path', itemIndex, '') as string;
+			let query = this.getNodeParameter('query', itemIndex, '') as string;
+			let args_string = this.getNodeParameter('args', itemIndex, '') as string;
+			let query_type = this.getNodeParameter('query_type', itemIndex, '') as string;
+			let spread = this.getNodeParameter('spread', itemIndex, '') as boolean;
+
+			if(query_type === 'AUTO') 
+			{
+				if(query.trim().toUpperCase().includes('SELECT')) 
+					query_type = 'SELECT';
+				else if(query.trim().toUpperCase().includes('INSERT')) 
+					query_type = 'INSERT';
+				else if(query.trim().toUpperCase().includes('UPDATE')) 
+					query_type = 'UPDATE';
+				else if(query.trim().toUpperCase().includes('DELETE')) 
+					query_type = 'DELETE';
+				else if(query.trim().toUpperCase().includes('CREATE')) 
+					query_type = 'CREATE';
+				else 
+					query_type = 'AUTO';
+			}
+
+			if(db_path === '') 
+				throw new NodeOperationError(this.getNode(), 'No database path provided.');
+			
+
+			if(query === '') 
+				throw new NodeOperationError(this.getNode(), 'No query provided.');
+
+			const db = new sqlite3.Database(db_path);
 			try 
 			{
-				item = items[itemIndex];
-				let db_path = this.getNodeParameter('db_path', itemIndex, '') as string;
-				let query = this.getNodeParameter('query', itemIndex, '') as string;
-				let args_string = this.getNodeParameter('args', itemIndex, '') as string;
 				let args = JSON.parse(args_string);
-				let query_type = this.getNodeParameter('query_type', itemIndex, '') as string;
-				let spread = this.getNodeParameter('spread', itemIndex, '') as boolean;
-
-				if(query_type === 'AUTO') 
+				let results;
+				if(query_type === 'SELECT') 
 				{
-					if(query.trim().toUpperCase().includes('SELECT')) 
-						query_type = 'SELECT';
-					else if(query.trim().toUpperCase().includes('INSERT')) 
-						query_type = 'INSERT';
-					else if(query.trim().toUpperCase().includes('UPDATE')) 
-						query_type = 'UPDATE';
-					else if(query.trim().toUpperCase().includes('DELETE')) 
-						query_type = 'DELETE';
-					else if(query.trim().toUpperCase().includes('CREATE')) 
-						query_type = 'CREATE';
-					else 
-						query_type = 'AUTO';
-				}
-
-				if(db_path === '') 
-					throw new NodeOperationError(this.getNode(), 'No database path provided.');
-				
-
-				if(query === '') 
-					throw new NodeOperationError(this.getNode(), 'No query provided.');
-
-				const db = new sqlite3.Database(db_path);
-				const results = await new Promise<any|any[]>(async (resolve, reject) => 
-				{
-					if(query_type === 'SELECT') 
+					// if query contains multiple queries, split them and execute them one by one
+					let queries = query.split(';').filter(q => q.trim() !== '');
+					if(queries.length > 1)
 					{
-						// if query contains multiple queries, split them and execute them one by one
-						let queries = query.split(';').filter(q => q.trim() !== '');
-						if(queries.length > 1)
-						{
 
-							let results = await Promise.all(queries.map(async (q) => 
+						results = await Promise.all(queries.map(async (q) => 
+						{
+							const query_args = { ...args };
+							for(const key in query_args) 
 							{
-								const query_args = { ...args };
-								for(const key in query_args) 
-								{
-									if(!q.includes(key)) 
-										delete query_args[key];
-								}
-									
-								return await new Promise<any|any[]>(async (resolve1, reject1) => 
-								{
-									// For SELECT queries, use db.all() to get all rows
-									db.all(q, query_args, (error, rows) => 
-									{
-										if(error) 
-											return reject1(error);
+								if(!q.includes(key)) 
+									delete query_args[key];
+							}
 
-										return resolve1(rows);
-									});
-								});
-							}));
-
-							return resolve(results);
-						}
-
-						const query_args = { ...args };
-						for(const key in query_args) 
-						{
-							if(!query.includes(key)) 
-								delete query_args[key];
-						}
-
-						// For SELECT queries, use db.all() to get all rows
-						db.all(query, query_args, (error, rows) => 
-						{
-							if(error) 
-								return reject(error);
-
-							return resolve(rows);
-						});
-					} 
-					else if(['INSERT', 'UPDATE', 'DELETE'].includes(query_type)) 
-					{
-						const query_args = { ...args };
-						for(const key in query_args) 
-						{
-							if(!query.includes(key)) 
-								delete query_args[key];
-						}
-
-						// For INSERT, UPDATE, DELETE queries, use db.run() 
-						db.run(query, query_args, function (error) 
-						{
-							if(error) 
-								return reject(error);
-							// Provide information like affected rows, last inserted id, etc.
-							return resolve({
-								changes: this.changes, // Number of rows affected
-								last_id: this.lastID // The last inserted row ID
-							});
-						});
-					} 
-					else 
-					{
-						const query_args = { ...args };
-						for(const key in query_args) 
-						{
-							if(!query.includes(key)) 
-								delete query_args[key];
-						}
-
-						// For other SQL commands (like CREATE, DROP, etc.), use db.run()
-						db.run(query, query_args, (error) => 
-						{
-							if(error) 
-								return reject(error);
-							return resolve({ message: 'Query executed successfully.' });
-						});
+							// For SELECT queries, use db.all() to get all rows
+							return all(db, q, query_args);
+						}));
 					}
-				});
-				db.close();
+
+					const query_args = { ...args };
+					for(const key in query_args) 
+					{
+						if(!query.includes(key)) 
+							delete query_args[key];
+					}
+
+					// For SELECT queries, use db.all() to get all rows
+					results = await all(db, query, query_args);
+				} 
+				else if(['INSERT', 'UPDATE', 'DELETE'].includes(query_type)) 
+				{
+					const query_args = { ...args };
+					for(const key in query_args) 
+					{
+						if(!query.includes(key)) 
+							delete query_args[key];
+					}
+
+					// For INSERT, UPDATE, DELETE queries, use db.run() 
+					results = await run(db, query, query_args)
+				} 
+				else 
+				{
+					const query_args = { ...args };
+					for(const key in query_args) 
+					{
+						if(!query.includes(key)) 
+							delete query_args[key];
+					}
+
+					// For other SQL commands (like CREATE, DROP, etc.), use db.run()
+					results = await exec(db, query)
+				}
 
 				if(query_type === 'SELECT' && spread) 
 				{
@@ -253,18 +261,25 @@ export class SqliteNode implements INodeType {
 							return { json: result };
 					});
 					
-					spreadResults.push(...newItems);
+					outputItems.push(...newItems);
 				} 
 				else 
-					item.json = results;
+				{
+					outputItems.push({json: results});
+				}
 			} 
 			catch(error) 
 			{
-				// This node should never fail but we want to showcase how
-				// to handle errors.
 				if(this.continueOnFail()) 
 				{
-					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
+					outputItems.push({
+						json: {
+							error: (error as Error).message || 'Unknown error',
+						},
+						pairedItem: {
+							item: itemIndex,
+						},
+					});
 				} 
 				else 
 				{
@@ -279,14 +294,16 @@ export class SqliteNode implements INodeType {
 
 					throw new NodeOperationError(this.getNode(), error, {
 						itemIndex,
+						message: error.message,
 					});
 				}
 			}
+			finally 
+			{
+				db.close();
+			}
 		}
 
-		if(spreadResults.length > 0) 
-			return this.prepareOutputData(spreadResults);
-
-		return this.prepareOutputData(items);
+		return this.prepareOutputData(outputItems);
 	}
 }

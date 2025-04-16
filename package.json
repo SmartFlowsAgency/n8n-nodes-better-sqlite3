@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-sqlite3",
-  "version": "0.1.2",
+  "version": "0.2.",
   "description": "Custom n8n nodes for interacting with SQLite3 databases through SQL queries",
   "keywords": [
     "n8n-community-node-package",
@@ -44,10 +44,8 @@
     "prettier": "^2.7.1",
     "typescript": "~4.8.4"
   },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  },
   "dependencies": {
+    "n8n-workflow": "*",
     "sqlite3": "^5.1.7"
   }
 }
