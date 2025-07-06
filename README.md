@@ -81,7 +81,7 @@ With spread operator only available for `SELECT` it's possible to return multipl
 - [SQLite Documentation](https://www.sqlite.org/docs.html)
 - [n8n Documentation](https://docs.n8n.io/integrations/creating-nodes/build/declarative-style-node/#step-35-add-operations)
 - [medium article](https://medium.com/@tarikalaouimhamdi/how-to-create-your-own-n8n-node-package-f298675712f0)
-- [SQLite3 package](https://www.npmjs.com/package/sqlite3)
+- [Better SQLite3 package](https://www.npmjs.com/package/better-sqlite3)
 - [sqlite3 wiki](https://github.com/TryGhost/node-sqlite3/wiki/API)
 - [n8n Documentations UI](https://docs.n8n.io/integrations/creating-nodes/build/reference/ui-elements/#string)
 

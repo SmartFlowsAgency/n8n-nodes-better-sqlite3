@@ -3,49 +3,48 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+		NodeConnectionType,
 	NodeOperationError,
 } from 'n8n-workflow';
-import * as sqlite3 from 'sqlite3';
+import Database from 'better-sqlite3';
+import type { Database as BetterSqlite3Database } from 'better-sqlite3';
 
-async function all(db: sqlite3.Database, query: string, args: any): Promise<any> {
+async function all(db: BetterSqlite3Database, query: string, args: any): Promise<any> {
 	return new Promise((resolve, reject) => {
 		// For SELECT queries, use db.all() to get all rows
-		db.all(query, args, (error, rows) => {
-			if (error) {
-				return reject(error);
-			}
+		try {
+			const rows = db.prepare(query).all(args);
 			resolve(rows);
-		});
+		} catch (error) {
+			reject(error);
+		}
 	});
 }
 
-async function run(db: sqlite3.Database, query: string, args: any): Promise<any> {
+async function run(db: BetterSqlite3Database, query: string, args: any): Promise<any> {
 	return new Promise((resolve, reject) => {
-		// For SELECT queries, use db.all() to get all rows
-		db.run(query, args, function (error)
-		{
-			if(error) 
-			{
-				return reject(error);
-			}
-
+		// For INSERT, UPDATE, DELETE queries, use db.run()
+		try {
+			const result = db.prepare(query).run(args);
 			resolve({
-				changes: this.changes, // Number of rows affected
-				last_id: this.lastID // The last inserted row ID
+				changes: result.changes, // Number of rows affected
+				last_id: result.lastInsertRowid // The last inserted row ID
 			});
-		});
+		} catch (error) {
+			reject(error);
+		}
 	});
 }
 
-async function exec(db: sqlite3.Database, query: string): Promise<any> {
+async function exec(db: BetterSqlite3Database, query: string): Promise<any> {
 	return new Promise((resolve, reject) => {
-		// For other SQL commands (like CREATE, DROP, etc.), use db.exec()
-		db.exec(query, (error) => {
-			if (error) {
-				return reject(error);
-			}
+		try {
+			// For other SQL commands (like CREATE, DROP, etc.), use db.exec()
+			db.exec(query);
 			resolve({ message: 'Query executed successfully.' });
-		});
+		} catch (error: any) {
+			reject(error);
+		}
 	});
 }
  
@@ -61,8 +60,8 @@ export class SqliteNode implements INodeType {
 		defaults: {
 			name: 'Sqlite Node',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main] as NodeConnectionType[],
+		outputs: [NodeConnectionType.Main] as NodeConnectionType[],
 		properties: [
 			// Node properties which the user gets displayed and
 			// can change on the node.
@@ -189,10 +188,18 @@ export class SqliteNode implements INodeType {
 			if(query === '') 
 				throw new NodeOperationError(this.getNode(), 'No query provided.');
 
-			const db = new sqlite3.Database(db_path);
+			query = query.replace(/\$/g, '@'); // Replace $ with @ for better-sqlite3 compatibility
+
+			const db = new Database(db_path);
 			try 
 			{
-				let args = JSON.parse(args_string);
+				let argsT = JSON.parse(args_string);
+				let args: Record<string, any> = {};
+				for(const key in argsT)
+				{
+					args[key.replace(/\$/g, '')] = argsT[key]; // Replace @ with $ for better-sqlite3 compatibility
+				}
+
 				let results;
 				if(query_type === 'SELECT') 
 				{
@@ -200,7 +207,6 @@ export class SqliteNode implements INodeType {
 					let queries = query.split(';').filter(q => q.trim() !== '');
 					if(queries.length > 1)
 					{
-
 						results = await Promise.all(queries.map(async (q) => 
 						{
 							const query_args = { ...args };
@@ -213,17 +219,19 @@ export class SqliteNode implements INodeType {
 							// For SELECT queries, use db.all() to get all rows
 							return all(db, q, query_args);
 						}));
-					}
-
-					const query_args = { ...args };
-					for(const key in query_args) 
+					} 
+					else 
 					{
-						if(!query.includes(key)) 
-							delete query_args[key];
-					}
+						const query_args = { ...args };
+						for(const key in query_args) 
+						{
+							if(!query.includes(key)) 
+								delete query_args[key];
+						}
 
-					// For SELECT queries, use db.all() to get all rows
-					results = await all(db, query, query_args);
+						// For SELECT queries, use db.all() to get all rows
+						results = await all(db, query, query_args);
+					}
 				} 
 				else if(['INSERT', 'UPDATE', 'DELETE'].includes(query_type)) 
 				{

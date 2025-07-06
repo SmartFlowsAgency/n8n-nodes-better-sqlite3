@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-sqlite3",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Custom n8n nodes for interacting with SQLite3 databases through SQL queries",
   "keywords": [
     "n8n-community-node-package",
@@ -19,7 +19,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && gulp build:icons",
+    "build": "npx rimraf dist && tsc && gulp build:icons",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes package.json",
@@ -36,16 +36,18 @@
     ]
   },
   "devDependencies": {
-    "@typescript-eslint/parser": "~5.45",
-    "eslint-plugin-n8n-nodes-base": "^1.11.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@typescript-eslint/parser": "~8.32.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.3",
     "gulp": "^5.0.0",
-    "n8n-workflow": "*",
-    "node-gyp": "^10.1.0",
-    "prettier": "^2.7.1",
-    "typescript": "~4.8.4"
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
   },
   "dependencies": {
-    "n8n-workflow": "*",
-    "sqlite3": "^5.1.7"
+    "better-sqlite3": "^12.2.0"
   }
 }
