@@ -52,7 +52,7 @@ async function exec(db: BetterSqlite3Database, query: string): Promise<any> {
 export class BetterSqliteNode implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'SQLite Node',
-		name: 'bettersqliteNode',
+		name: 'betterSqliteNode',
 		icon: 'file:sqlite-icon.svg',
 		group: ['transform'],
 		version: 1,
