@@ -6,7 +6,7 @@ import {
 		NodeConnectionType,
 	NodeOperationError,
 } from 'n8n-workflow';
-import Database from 'better-sqlite3';
+import Database=require('better-sqlite3');
 import type { Database as BetterSqlite3Database } from 'better-sqlite3';
 
 async function all(db: BetterSqlite3Database, query: string, args: any): Promise<any> {
@@ -47,7 +47,7 @@ async function exec(db: BetterSqlite3Database, query: string): Promise<any> {
 		}
 	});
 }
- 
+
 
 export class SqliteNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -146,52 +146,52 @@ export class SqliteNode implements INodeType {
 							'SELECT',
 						],
 					},
-				},				
+				},
 			}
 		],
 	};
 
-	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> 
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]>
 	{
 		const items = this.getInputData();
 
 		let outputItems = [];
-		for(let itemIndex = 0; itemIndex < items.length; itemIndex++) 
+		for(let itemIndex = 0; itemIndex < items.length; itemIndex++)
 		{
-			
+
 			let db_path = this.getNodeParameter('db_path', itemIndex, '') as string;
 			let query = this.getNodeParameter('query', itemIndex, '') as string;
 			let args_string = this.getNodeParameter('args', itemIndex, '') as string;
 			let query_type = this.getNodeParameter('query_type', itemIndex, '') as string;
 			let spread = this.getNodeParameter('spread', itemIndex, '') as boolean;
 
-			if(query_type === 'AUTO') 
+			if(query_type === 'AUTO')
 			{
-				if(query.trim().toUpperCase().includes('SELECT')) 
+				if(query.trim().toUpperCase().includes('SELECT'))
 					query_type = 'SELECT';
-				else if(query.trim().toUpperCase().includes('INSERT')) 
+				else if(query.trim().toUpperCase().includes('INSERT'))
 					query_type = 'INSERT';
-				else if(query.trim().toUpperCase().includes('UPDATE')) 
+				else if(query.trim().toUpperCase().includes('UPDATE'))
 					query_type = 'UPDATE';
-				else if(query.trim().toUpperCase().includes('DELETE')) 
+				else if(query.trim().toUpperCase().includes('DELETE'))
 					query_type = 'DELETE';
-				else if(query.trim().toUpperCase().includes('CREATE')) 
+				else if(query.trim().toUpperCase().includes('CREATE'))
 					query_type = 'CREATE';
-				else 
+				else
 					query_type = 'AUTO';
 			}
 
-			if(db_path === '') 
+			if(db_path === '')
 				throw new NodeOperationError(this.getNode(), 'No database path provided.');
-			
 
-			if(query === '') 
+
+			if(query === '')
 				throw new NodeOperationError(this.getNode(), 'No query provided.');
 
 			query = query.replace(/\$/g, '@'); // Replace $ with @ for better-sqlite3 compatibility
 
 			const db = new Database(db_path);
-			try 
+			try
 			{
 				let argsT = JSON.parse(args_string);
 				let args: Record<string, any> = {};
@@ -201,56 +201,56 @@ export class SqliteNode implements INodeType {
 				}
 
 				let results;
-				if(query_type === 'SELECT') 
+				if(query_type === 'SELECT')
 				{
 					// if query contains multiple queries, split them and execute them one by one
 					let queries = query.split(';').filter(q => q.trim() !== '');
 					if(queries.length > 1)
 					{
-						results = await Promise.all(queries.map(async (q) => 
+						results = await Promise.all(queries.map(async (q) =>
 						{
 							const query_args = { ...args };
-							for(const key in query_args) 
+							for(const key in query_args)
 							{
-								if(!q.includes(key)) 
+								if(!q.includes(key))
 									delete query_args[key];
 							}
 
 							// For SELECT queries, use db.all() to get all rows
 							return all(db, q, query_args);
 						}));
-					} 
-					else 
+					}
+					else
 					{
 						const query_args = { ...args };
-						for(const key in query_args) 
+						for(const key in query_args)
 						{
-							if(!query.includes(key)) 
+							if(!query.includes(key))
 								delete query_args[key];
 						}
 
 						// For SELECT queries, use db.all() to get all rows
 						results = await all(db, query, query_args);
 					}
-				} 
-				else if(['INSERT', 'UPDATE', 'DELETE'].includes(query_type)) 
+				}
+				else if(['INSERT', 'UPDATE', 'DELETE'].includes(query_type))
 				{
 					const query_args = { ...args };
-					for(const key in query_args) 
+					for(const key in query_args)
 					{
-						if(!query.includes(key)) 
+						if(!query.includes(key))
 							delete query_args[key];
 					}
 
-					// For INSERT, UPDATE, DELETE queries, use db.run() 
+					// For INSERT, UPDATE, DELETE queries, use db.run()
 					results = await run(db, query, query_args)
-				} 
-				else 
+				}
+				else
 				{
 					const query_args = { ...args };
-					for(const key in query_args) 
+					for(const key in query_args)
 					{
-						if(!query.includes(key)) 
+						if(!query.includes(key))
 							delete query_args[key];
 					}
 
@@ -258,27 +258,27 @@ export class SqliteNode implements INodeType {
 					results = await exec(db, query)
 				}
 
-				if(query_type === 'SELECT' && spread) 
+				if(query_type === 'SELECT' && spread)
 				{
 					// If spread is true, spread the result into multiple items
-					const newItems = results.map((result: any) => 
+					const newItems = results.map((result: any) =>
 					{
 						if(Array.isArray(result))
-							return { json: {items: result} }; 
-						else 
+							return { json: {items: result} };
+						else
 							return { json: result };
 					});
-					
+
 					outputItems.push(...newItems);
-				} 
-				else 
+				}
+				else
 				{
 					outputItems.push({json: results});
 				}
-			} 
-			catch(error) 
+			}
+			catch(error)
 			{
-				if(this.continueOnFail()) 
+				if(this.continueOnFail())
 				{
 					outputItems.push({
 						json: {
@@ -288,11 +288,11 @@ export class SqliteNode implements INodeType {
 							item: itemIndex,
 						},
 					});
-				} 
-				else 
+				}
+				else
 				{
 					// Adding `itemIndex` allows other workflows to handle this error
-					if(error.context) 
+					if(error.context)
 					{
 						// If the error thrown already contains the context property,
 						// only append the itemIndex
@@ -306,7 +306,7 @@ export class SqliteNode implements INodeType {
 					});
 				}
 			}
-			finally 
+			finally
 			{
 				db.close();
 			}
