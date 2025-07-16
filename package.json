@@ -1,15 +1,14 @@
 {
   "name": "@smart-flows-agency/n8n-nodes-better-sqlite3",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Custom n8n nodes for interacting with SQLite3 databases through SQL queries using better-sqlite3.",
   "keywords": [
     "n8n-community-node-package",
     "sqlite3",
-
     "n8n"
   ],
   "license": "MIT",
-  "homepage": "",
+  "homepage": "smartflows.agency",
   "author": {
     "name": "SmartFlows Agency",
     "email": "devs@smartflows.agency"
@@ -33,7 +32,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
-      "dist/nodes/SqliteNode/SqliteNode.node.js"
+      "dist/nodes/BetterSqliteNode/BetterSqliteNode.node.js"
     ]
   },
   "devDependencies": {
