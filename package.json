@@ -1,21 +1,22 @@
 {
-  "name": "n8n-nodes-sqlite3",
-  "version": "0.2.1",
-  "description": "Custom n8n nodes for interacting with SQLite3 databases through SQL queries",
+  "name": "@smart-flows-agency/n8n-nodes-better-sqlite3",
+  "version": "0.0.1",
+  "description": "Custom n8n nodes for interacting with SQLite3 databases through SQL queries using better-sqlite3.",
   "keywords": [
     "n8n-community-node-package",
     "sqlite3",
+
     "n8n"
   ],
   "license": "MIT",
   "homepage": "",
   "author": {
-    "name": "DangerBlack",
-    "email": "daniele.baschieri+n8n@gmail.com"
+    "name": "SmartFlows Agency",
+    "email": "devs@smartflows.agency"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/DangerBlack/n8n-node-sqlite3.git"
+    "url": "git+https://github.com/SmartFlowsAgency/n8n-nodes-better-sqlite3.git"
   },
   "main": "index.js",
   "scripts": {
